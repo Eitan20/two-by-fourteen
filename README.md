@@ -10,6 +10,7 @@ An AI-powered tool that generates customized 14-day SMS marketing campaigns usin
 - 💬 **Conversational Tone**: Matches casual, friendly style with questions to encourage engagement
 - 📥 **Download Feature**: Export your sequence as a markdown file
 - 🎯 **Pain Point Focused**: Targets customer pain points and highlights your differentiators
+- 📧 **Email Delivery**: Automatically sends sequences to leads and notifications to admins via Resend
 
 ## How It Works
 
@@ -54,6 +55,7 @@ DAY 14 - PM: ok {{contact.first_name}}, i'm closing out your request. if you cha
 - Node.js 18+
 - React 18+
 - Valid Anthropic API key
+- Valid Resend API key (for email functionality)
 
 ### Installation
 
@@ -68,13 +70,29 @@ cd sms-sequence-generator
 npm install
 ```
 
-3. Update the API key in `App.jsx`:
-```javascript
-// Replace with your API key
-"x-api-key": "your-anthropic-api-key-here"
+3. Create a `.env` file from the example:
+```bash
+cp .env.example .env
 ```
 
-4. Start the development server:
+4. Configure your environment variables in `.env`:
+```bash
+# Get your Anthropic API key from https://console.anthropic.com/
+ANTHROPIC_API_KEY=your-anthropic-api-key-here
+
+# Get your Resend API key from https://resend.com/
+RESEND_API_KEY=your-resend-api-key-here
+
+# Your email address to receive lead notifications
+NOTIFICATION_EMAIL=your-email@example.com
+```
+
+5. Start the backend server:
+```bash
+node server.js
+```
+
+6. In a new terminal, start the frontend development server:
 ```bash
 npm start
 ```
@@ -84,8 +102,10 @@ npm start
 - **React 18**: UI framework
 - **Tailwind CSS**: Styling
 - **Lucide React**: Icons
+- **Node.js & Express**: Backend server
 - **Claude Sonnet 4.5**: AI model for content generation
 - **Anthropic API**: AI inference
+- **Resend**: Email delivery service
 
 ## API Configuration
 
@@ -131,14 +151,48 @@ Typical sequence generation costs:
 - Plumbing services
 - Any local service business with a clear differentiator
 
+## Email Configuration (Resend)
+
+The application sends two emails for each generated sequence:
+1. **Lead Email**: Full SMS sequence sent to the lead's email address
+2. **Admin Notification**: Lead capture notification sent to your email
+
+### Setting Up Resend for Production
+
+⚠️ **IMPORTANT**: By default, Resend operates in **sandbox mode**, which only sends emails to verified addresses. To send emails to leads:
+
+1. **Sign up for Resend** at https://resend.com/
+2. **Verify your domain**:
+   - Go to Resend Dashboard → Domains
+   - Add your domain and follow DNS verification instructions
+   - Wait for verification to complete
+3. **Update the `from` address** in `server.js`:
+   - Change `from: 'onboarding@resend.dev'` to `from: 'your-name@yourdomain.com'`
+   - Must use your verified domain
+4. **Verify your notification email**:
+   - The email address in `NOTIFICATION_EMAIL` must be verified in Resend
+   - Or use an email from your verified domain
+
+### Troubleshooting Email Delivery
+
+If leads are not receiving emails:
+- Check server logs for error messages
+- Ensure Resend is not in sandbox mode
+- Verify your domain in Resend dashboard
+- Update the `from` address to use your verified domain
+- Check spam folders
+
+The admin notification email now includes a status indicator showing whether the lead email was successfully sent.
+
 ## Security Notes
 
-⚠️ **Important**: Never commit your API key to version control!
+⚠️ **Important**: Never commit your API keys to version control!
 
-Store your API key securely:
-1. Use environment variables
-2. Use a `.env` file (add to `.gitignore`)
+Store your API keys securely:
+1. Use environment variables via `.env` file
+2. Ensure `.env` is in `.gitignore`
 3. Use secrets management for production
+4. Never share your `.env` file
 
 ## Contributing
 
