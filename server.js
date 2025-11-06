@@ -81,12 +81,15 @@ Ready to use these messages in your SMS platform!
 ═══════════════════════════════════════════
 `;
 
-    // Send email to the user with their sequence
-    await resend.emails.send({
-      from: 'onboarding@resend.dev',
-      to: email,
-      subject: `Your ${businessName} SMS Sequence is Ready! 🎉`,
-      html: `
+    // Send email to the lead with their sequence
+    let leadEmailSuccess = false;
+    try {
+      console.log(`Attempting to send email to lead: ${email}`);
+      await resend.emails.send({
+        from: 'onboarding@resend.dev',
+        to: email,
+        subject: `Your ${businessName} SMS Sequence is Ready! 🎉`,
+        html: `
         <div style="font-family: Arial, sans-serif; max-width: 650px; margin: 0 auto; padding: 20px; background-color: #ffffff;">
           <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 12px; text-align: center; margin-bottom: 30px;">
             <h1 style="color: #ffffff; font-size: 28px; margin: 0;">🎉 Your SMS Sequence is Ready!</h1>
@@ -157,14 +160,24 @@ Ready to use these messages in your SMS platform!
           </div>
         </div>
       `
-    });
+      });
+      leadEmailSuccess = true;
+      console.log(`✅ Successfully sent email to lead: ${email}`);
+    } catch (leadEmailError) {
+      console.error(`❌ Failed to send email to lead (${email}):`, leadEmailError);
+      console.error('Note: If using Resend sandbox mode, emails can only be sent to verified addresses.');
+      console.error('To send to arbitrary addresses, verify your domain in Resend and use a verified "from" address.');
+    }
 
-    // Send notification to you about new signup with full details
-    await resend.emails.send({
-      from: 'onboarding@resend.dev',
-      to: NOTIFICATION_EMAIL,
-      subject: `🎯 New Lead: ${businessName} - SMS Sequence Generator`,
-      html: `
+    // Send notification to admin about new signup with full details
+    let adminEmailSuccess = false;
+    try {
+      console.log(`Attempting to send notification email to admin: ${NOTIFICATION_EMAIL}`);
+      await resend.emails.send({
+        from: 'onboarding@resend.dev',
+        to: NOTIFICATION_EMAIL,
+        subject: `🎯 New Lead: ${businessName} - SMS Sequence Generator`,
+        html: `
         <div style="font-family: Arial, sans-serif; max-width: 650px; margin: 0 auto; padding: 20px; background-color: #ffffff;">
           <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 30px; border-radius: 12px; text-align: center; margin-bottom: 30px;">
             <h1 style="color: #ffffff; font-size: 28px; margin: 0;">🎉 New Lead Captured!</h1>
@@ -181,6 +194,10 @@ Ready to use these messages in your SMS platform!
               <tr>
                 <td style="padding: 12px; color: #78350f; font-weight: 700;">Timestamp:</td>
                 <td style="padding: 12px; color: #451a03;">${new Date().toLocaleString()}</td>
+              </tr>
+              <tr>
+                <td style="padding: 12px; color: #78350f; font-weight: 700;">Lead Email Status:</td>
+                <td style="padding: 12px; color: #451a03;">${leadEmailSuccess ? '✅ Sent' : '❌ Failed (see server logs)'}</td>
               </tr>
             </table>
           </div>
@@ -234,9 +251,37 @@ Ready to use these messages in your SMS platform!
           </div>
         </div>
       `
-    });
+      });
+      adminEmailSuccess = true;
+      console.log(`✅ Successfully sent notification email to admin: ${NOTIFICATION_EMAIL}`);
+    } catch (adminEmailError) {
+      console.error(`❌ Failed to send notification email to admin (${NOTIFICATION_EMAIL}):`, adminEmailError);
+    }
 
-    res.json({ success: true, message: 'Emails sent successfully' });
+    // Return success/failure status
+    if (!leadEmailSuccess && !adminEmailSuccess) {
+      res.status(500).json({
+        success: false,
+        message: 'Both emails failed to send. Check server logs for details.'
+      });
+    } else if (!leadEmailSuccess) {
+      res.json({
+        success: true,
+        warning: 'Admin notification sent, but lead email failed. This may be due to Resend sandbox mode.',
+        message: 'Admin notification sent successfully, but lead email may have failed. Check server logs.'
+      });
+    } else if (!adminEmailSuccess) {
+      res.json({
+        success: true,
+        warning: 'Lead email sent, but admin notification failed.',
+        message: 'Lead email sent successfully, but admin notification failed. Check server logs.'
+      });
+    } else {
+      res.json({
+        success: true,
+        message: 'Both emails sent successfully'
+      });
+    }
   } catch (error) {
     console.error('Error sending emails:', error);
     res.status(500).json({ error: 'Failed to send emails' });
