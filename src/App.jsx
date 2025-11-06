@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Loader2, Download, Edit2, Check, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Loader2, Download, Edit2, Check, ArrowRight, ArrowLeft, Copy, CheckCheck } from 'lucide-react';
 
 const SMSSequenceGenerator = () => {
   const [step, setStep] = useState(1);
@@ -20,18 +20,17 @@ const SMSSequenceGenerator = () => {
   
   // Step 3 - Generated SMS sequence
   const [smsSequence, setSmsSequence] = useState([]);
-  
+
   const [editMode, setEditMode] = useState(false);
+  const [copiedIndex, setCopiedIndex] = useState(null);
 
   const generateBusinessDetails = async () => {
     setIsGenerating(true);
     
     try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
+      const response = await fetch("http://localhost:3001/api/generate", {
         method: "POST",
         headers: {
-          "x-api-key": "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",
-          "anthropic-version": "2023-06-01",
           "content-type": "application/json",
         },
         body: JSON.stringify({
@@ -90,11 +89,9 @@ CRITICAL: Respond ONLY with valid JSON. Do not include any text outside the JSON
     setIsGeneratingSequence(true);
     
     try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
+      const response = await fetch("http://localhost:3001/api/generate", {
         method: "POST",
         headers: {
-          "x-api-key": "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",
-          "anthropic-version": "2023-06-01",
           "content-type": "application/json",
         },
         body: JSON.stringify({
@@ -153,8 +150,31 @@ CRITICAL: Respond ONLY with valid JSON. Do not include any text outside the JSON
       responseText = responseText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
       
       const generatedSequence = JSON.parse(responseText);
-      
+
       setSmsSequence(generatedSequence.messages);
+
+      // Send emails after sequence is generated
+      try {
+        await fetch("http://localhost:3001/api/send-emails", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({
+            email,
+            businessName,
+            businessType,
+            differentiator,
+            painPoints,
+            whatWeOffer,
+            smsSequence: generatedSequence.messages
+          })
+        });
+      } catch (emailError) {
+        console.error("Error sending emails:", emailError);
+        // Don't fail the whole process if email fails
+      }
+
       setStep(3);
     } catch (error) {
       console.error("Error generating SMS sequence:", error);
@@ -189,6 +209,16 @@ CRITICAL: Respond ONLY with valid JSON. Do not include any text outside the JSON
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  };
+
+  const copyToClipboard = async (text, index) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedIndex(index);
+      setTimeout(() => setCopiedIndex(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
   };
 
   const handleStep1Submit = (e) => {
@@ -464,10 +494,29 @@ CRITICAL: Respond ONLY with valid JSON. Do not include any text outside the JSON
             <div className="space-y-6 max-h-[600px] overflow-y-auto pr-2">
               {smsSequence.map((msg, index) => (
                 <div key={index} className="border-l-4 border-blue-500 pl-4 py-2">
-                  <div className="font-semibold text-sm text-slate-600 mb-1">
-                    DAY {msg.day} - {msg.time} MESSAGE
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="font-semibold text-sm text-slate-600">
+                      DAY {msg.day} - {msg.time} MESSAGE
+                    </div>
+                    <button
+                      onClick={() => copyToClipboard(msg.message, index)}
+                      className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium transition-colors"
+                      title="Copy to clipboard"
+                    >
+                      {copiedIndex === index ? (
+                        <>
+                          <CheckCheck className="w-4 h-4" />
+                          Copied!
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-4 h-4" />
+                          Copy
+                        </>
+                      )}
+                    </button>
                   </div>
-                  <div className="text-slate-800 bg-slate-50 p-3 rounded">
+                  <div className="text-slate-800 bg-slate-50 p-3 rounded cursor-pointer hover:bg-slate-100 transition-colors" onClick={() => copyToClipboard(msg.message, index)}>
                     {msg.message}
                   </div>
                 </div>
